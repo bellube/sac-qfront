@@ -1,0 +1,7 @@
+{
+  "name": "sankhya-gateway",
+  "version": "1.0.0",
+  "description": "Cliente do Sankhya API Gateway (api.sankhya.com.br) - consulta de Parceiro/Pedido/Titulo para o SAC QFront",
+  "main": "sankhya-gateway.js",
+  "dependencies": { "axios": "^1.7.7", "dotenv": "^16.4.5" }
+}

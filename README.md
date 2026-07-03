@@ -43,7 +43,8 @@ SAC_QFront/
 ├── docs/
 │   ├── GUIA_DESENVOLVEDOR.md          ← arquitetura, código, APIs, como autenticar
 │   ├── OPERACOES_RUNBOOK.md           ← deploy, serviço, monitoramento, troubleshooting
-│   └── CONFIGURACAO_QFRONT.md         ← times, caixas, etiquetas, campos, roteamento
+│   ├── CONFIGURACAO_QFRONT.md         ← times, caixas, etiquetas, campos, roteamento
+│   └── INTEGRACAO_SANKHYA.md          ← consulta Parceiro/Pedido/Título via Sankhya API Gateway
 └── integration/
     ├── email-bridge/                  ← ponte sac@ (M365 Graph) ↔ QFront  [PRINCIPAL]
     │   ├── email-bridge.js
@@ -51,6 +52,7 @@ SAC_QFront/
     │   ├── package.json
     │   └── sac-email-bridge.service
     ├── neppo-bridge/                  ← ponte WhatsApp (Neppo) → QFront
+    ├── sankhya-gateway/                ← consulta Parceiro/Pedido/Título via Sankhya API Gateway
     └── sac-import/                    ← script de importação de histórico
 ```
 
@@ -92,6 +94,7 @@ Ver **[docs/GUIA_DESENVOLVEDOR.md](docs/GUIA_DESENVOLVEDOR.md)** para o passo a 
 - ✅ Roteamento automático por time (palavra-chave → área) funcionando.
 - ✅ Base QFront configurada: 8 times, caixas, 23 etiquetas, 18 campos personalizados, respostas prontas.
 - ✅ Importação de histórico.
-- 🔜 Fase 2: gravação de parecer no Sankhya (`AD_ATENDIMENTOOS`); chatbot de triagem no WhatsApp; Kanban/SLA nas Funções Extras Megleo.
+- ✅ Consulta ao Sankhya via API Gateway (Parceiro, Pedido/Nota, Título/Boleto) — `integration/sankhya-gateway/`, ver `docs/INTEGRACAO_SANKHYA.md`.
+- 🔜 Fase 2: gravação de parecer no Sankhya (`AD_ATENDIMENTOOS`) — bloqueada até habilitação de `CRUDServiceProvider` na instância Sankhya (ver docs); chatbot de triagem no WhatsApp; Kanban/SLA nas Funções Extras Megleo.
 
 Ver `docs/` para detalhes. Licença: uso interno Bel Lube (ver seção de licença no final do GUIA).

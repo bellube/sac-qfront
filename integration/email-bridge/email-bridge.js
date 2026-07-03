@@ -11,6 +11,7 @@
 const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
+const sankhya = require('../sankhya-gateway/sankhya-gateway');
 require('dotenv').config();
 const list = v => (v || '').split(',').map(s => s.trim()).filter(Boolean);
 const C = {
@@ -164,6 +165,21 @@ async function applyExtractedFields(convId, text, currentAttrs) {
   for (const k of Object.keys(ext)) { const cur = currentAttrs ? currentAttrs[k] : null; if (cur === undefined || cur === null || String(cur).trim() === '' || cur === '---') upd[k] = ext[k]; }
   if (Object.keys(upd).length) { try { await qf('POST', `/conversations/${convId}/custom_attributes`, { custom_attributes: upd }); log('CAMPOS', convId, JSON.stringify(upd)); } catch (e) { log('WARN campos', convId, e.message); } }
 }
+// consulta o Sankhya (Parceiro/Pedido) e preenche parceiro_nome/parceiro_vendedor/pedido_status; nunca bloqueia o fluxo do ticket
+async function enrichFromSankhya(convId, fields) {
+  const upd = {};
+  try {
+    if (fields.cod_parceiro || fields.cnpj) {
+      const p = await sankhya.lookupParceiro({ codParc: fields.cod_parceiro, cnpj: fields.cnpj });
+      if (p) { upd.parceiro_nome = p.NOMEPARC || ''; upd.parceiro_vendedor = String(p.CODVEND || ''); }
+    }
+    if (fields.pedido_nunota) {
+      const ped = await sankhya.lookupPedido({ nunota: fields.pedido_nunota });
+      if (ped) upd.pedido_status = String(ped.STATUSNOTA || '');
+    }
+    if (Object.keys(upd).length) { await qf('POST', `/conversations/${convId}/custom_attributes`, { custom_attributes: upd }); log('SANKHYA', convId, JSON.stringify(upd)); }
+  } catch (e) { log('WARN sankhya', convId, e.message); }
+}
 // monta o assunto com o protocolo NO INICIO (bem visivel), sem duplicar prefixos
 function subjectWithProtocolo(protocolo, subject, isReply) {
   let s = (subject || '').replace(/\[SAC-\d+\]/gi, '').replace(/^\s*((re|res|enc|fwd|fw)\s*:\s*)+/i, '').trim();
@@ -204,6 +220,7 @@ async function toQFront(msg, inboxId, resolved) {
     if (existing) {
       await qfPostMessage(existing.id, content, env, atts);
       await applyExtractedFields(existing.id, (msg.subject || '') + ' ' + bodyTxt, existing.attrs);  // mantem/enriquece os campos a cada interacao
+      enrichFromSankhya(existing.id, { ...extractFields((msg.subject || '') + ' ' + bodyTxt), ...existing.attrs });  // fire-and-forget, nao atrasa o ticket
       if (existing.status === 'resolved') { try { await qf('POST', `/conversations/${existing.id}/toggle_status`, { status: 'open' }); } catch (e) {} }  // reabre o ticket
       st.sessions['c' + existing.id] = st.sessions['c' + existing.id] || { email: (from.address || '').toLowerCase(), subject: msg.subject, graphId: msg.id, protocolo: 'SAC-' + String(existing.id).padStart(6, '0') };
       st.seen[msg.id] = existing.id; save();
@@ -224,6 +241,7 @@ async function toQFront(msg, inboxId, resolved) {
     const extracted = extractFields((msg.subject || '') + ' ' + bodyTxt);
     try { await qf('POST', `/conversations/${conv.id}/custom_attributes`, { custom_attributes: { protocolo_sac: protocolo, ...extracted } }); } catch (e) { log('WARN protocolo', conv.id, e.response ? e.response.status : e.message); }
     if (Object.keys(extracted).length) log('CAMPOS', conv.id, JSON.stringify(extracted));
+    enrichFromSankhya(conv.id, extracted);  // fire-and-forget, nao atrasa o ticket
     if (labels.length) { try { await qf('POST', `/conversations/${conv.id}/labels`, { labels }); } catch (e) { log('WARN labels', conv.id, e.response ? e.response.status : e.message); } }
     await maybeAck((from.address || '').toLowerCase(), msg.subject || '', protocolo, conv.id);
     st.sessions['c' + conv.id] = { email: (from.address || '').toLowerCase(), subject: msg.subject, graphId: msg.id, protocolo, team };
